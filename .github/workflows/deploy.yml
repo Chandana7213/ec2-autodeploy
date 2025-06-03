@@ -1,0 +1,42 @@
+name: Deploy to EC2 via CodeDeploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v2
+
+      - name: Zip files
+        run: zip -r my-app.zip . -x '*.git*'
+
+      - name: Upload to S3
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --acl private --follow-symlinks
+        env:
+          AWS_S3_BUCKET: bucket-trave
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+          SOURCE_DIR: .
+          DEST_DIR: /
+
+      - name: Trigger CodeDeploy
+        uses: webfactory/create-aws-codedeploy-deployment@v0.3.0
+        with:
+          application-name: MyAp
+          deployment-group: MyApp-DeployGroup
+          bucket: bucket-trave
+          bundle-key: my-app.zip
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
